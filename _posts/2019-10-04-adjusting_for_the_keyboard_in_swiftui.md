@@ -8,13 +8,13 @@ categories: iOS SwiftUI Combine
 
 Adjusting your UI to avoid the keyboard is a common task in iOS development. Whether you're building a form and want to keep the current field visible, or you're building a chat client and want to adjust your text-entry component to always sit on top of the keyboard, you will have to handle the keyboard animating on and off of the screen.
 
-As I started to explore SwiftUI, I quickly encountered the keyboard covering my UI elements. Unfortunately, for all the great features and funcationality build into SwiftUI, the `TextField` doesn't yet offer the concept of an `inputAccessoryView`, or some other hook to adapt to the keyboard appearing or disappearing.
+As I started to explore SwiftUI, I quickly encountered the keyboard covering my UI elements. Unfortunately, for all the great features and funcationality build into SwiftUI, I couldn't find a hook to adjust to the keyboard appearing or disappearing. Since this is such a common task, I needed to come up with a solution.
 
-When learning how to do something with a new frameworks, I like to start by looking at how I would accomplish that particular task in a framework I'm familiar with and work from there. In this case, that means turning to our old friend UIKit.
+When learning how to do something with a new frameworks, I like to start by looking at how I would accomplish that particular task in a framework I'm familiar with and work from there. In this case, that means turning to our old friend UIKit. This post walks through 
 
 ## How do we solve this in UIKit apps?
 
-To handle the keyboard in UIKit apps, you typically observe keyboard notifications, and adjust your autolayout constraints based on keyboard metadata in that notification. It looks something like this:
+To handle the keyboard in UIKit apps, you typically observe keyboard notifications, and adjust your autolayout constraints based on information extracted from that notification. It looks something like this:
 
 ```swift
 
@@ -38,7 +38,7 @@ class KeyboardObservingViewController: UIViewController {
 }
 ```
 
-This has been a reliable approach for the community, so let's see if we can recreate this in SwiftUI!
+This has been a reliable approach for the iOS community, so let's see if we can recreate this in SwiftUI!
 
 ## Create a SwiftUI View
 
@@ -62,9 +62,9 @@ struct KeyboardObservingView: View {
 }
 ```
 
-## Adding Local State
+## Adding local state
 
-If we think back to how we solve this in UIKit, we determine the keyboard height and animation duration using the notification, and then update the view with those values. In SwiftUI, these values could be considered state that is local to your view. For hyper-local state like this, the new `@State` property wrapper is a perfect choice.
+If we think back to how we react to keyboard changes in UIKit apps, we determine the keyboard height and animation duration using the notification, and then update the view with those values. In SwiftUI, these values for height and animation duration could be considered state that is local to your view. For hyper-local state like this, the new `@State` property wrapper is a perfect choice.
 
 ```swift
 struct KeyboardObservingView: View {
@@ -85,11 +85,11 @@ struct KeyboardObservingView: View {
 }
 ```
 
-## Combine to the Rescue
+## Combine to the rescue
 
-We've now created a place to store our state, but we don't yet have a way of getting to those values by observing notifications.
+We've now created a place to store our keyboard-related state, but we don't yet have a way of observing changes and updating those values based on `Notification`s.
 
-For this, we'll turn to the new Combine framework. SwiftUI `View`'s have an `onReceive` method that takes a Combine `Publisher`. Fortunately for us, `NotificationCenter` can now expose `Publisher`s for specific notifications!
+For this, we'll turn to the new Combine framework. SwiftUI `View`'s have an `onReceive` method that takes a Combine `Publisher`. Fortunately for us, `NotificationCenter` can now expose `Publisher`s for specific notifications! We want to subscribe to `keyboardWillChangeFrameNotification` notifications and when a notification is raised, invoke a method to update our keyboard-related state.
 
 ```swift
 struct KeyboardObservingView: View {
@@ -136,7 +136,7 @@ One important thing to note from the snippet above is that I've chosen to includ
 
 Now that we're observing notifications and updating our keyboard-related state, we need to update the view to take that state into account.
 
-To do that, we'll add three view modifiers to our `VStack`:
+To do that, we'll add the following three view modifiers to our `VStack`:
 
 ```swift
   // Pad the bottom of the view to raise it above the keyboard
@@ -149,7 +149,7 @@ To do that, we'll add three view modifiers to our `VStack`:
   .animation(.easeOut(duration: keyboardAnimationDuration))
 ```
 
-All together is should look something like this:
+All together it should look something like this:
 
 ```swift
 struct KeyboardObservingView: View {
@@ -193,19 +193,16 @@ struct KeyboardObservingView: View {
 }
 ```
 
-At this point, you should see the view updating as the keyboard is shown!
+At this point, you should see the view updating as the keyboard appears, changes height, or disappears!
 
-## Can We do Better?
+## Can we do better?
 
-So we've got a working solution, but can we do better? This seems like a lot of code to copy in every time a view needs to avoid the keyboard.
+So we've got a working solution, but can we do better? This seems like a lot of code to write every time a view needs to avoid the keyboard.
 
-The good news is that we can definitely do better. SwiftUI provides a `ViewModifier` protocol that allows us to add or change aspects of our `Views`. I won't go into depth in this post, but you've used a few of SwiftUI's built-in `ViewModifier`s through this excercise (`.padding`, `.background`, and more!). 
+We can definitely do better, and we'll turn to another SwiftUI feature to improve our solution. SwiftUI provides a `ViewModifier` protocol that allows us to add or change aspects of our `Views`. We've already used some of the more common `ViewModifier`s built into SwiftUI in this post (`.padding`, `.background`, etc). To wrap things up, we'll take what we've written, and adapt it into a `ViewModifier` for observing the keyboard.
 
-To wrap things up, we'll take what we've written, and adapt it into a `ViewModifier` to make reusing this code a breeze!
+## Writing a ViewModifier
 
-## Let's Write a ViewModifier!
-
-To start, we can 
 The `ViewModifer` protocol requires us to implement the following function, where `Body` conforms to the SwiftUI's `View` protocol:
 
 ```swift
@@ -269,7 +266,7 @@ struct BetterView: View {
 }
 ```
 
-Let's not stop there though! We can actually take the ergonomics one step further by adding a `keyboardObserving` method to the `View` protocol using protocol extensions.
+Let's not stop there though! We can actually take the ergonomics one step further by adding a `keyboardObserving` method to the `View` protocol in an extension.
 
 ```swift
 extension View {
@@ -299,9 +296,9 @@ struct BetterView: View {
 }
 ```
 
-## In Conclusion...
+## In conclusion...
 
-It turns out that handling the keyboard in SwiftUI isn't that bad! Unfortunately, we weren't about to reach a _Pure SwiftUI™_ solution, but we got to learn about the `ViewModifier` protocol, and Combine along the way!
+It turns out that we can handle the keyboard in SwiftUI in nearly the same way we do in UIKit apps! Unfortunately, we weren't able to reach a _Pure SwiftUI™_ solution, but we got to learn about the `ViewModifier` protocol, and Combine along the way!
 
 I've made the functionality we've built in this post, along with a `Keyboard` type that conforms to the `ObservableObject` protocol for your other keyboard-related needs available as a Swift Package. Check out [KeyboardObserving](https://github.com/nickffox/KeyboardObserving) on Github!
 
