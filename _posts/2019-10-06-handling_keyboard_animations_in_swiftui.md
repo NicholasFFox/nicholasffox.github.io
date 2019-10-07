@@ -1,8 +1,8 @@
 ---
 layout:     post
-title:      Handling the Keyboard in SwiftUI
+title:      Handling Keyboard Animations in SwiftUI
 date:       2019-10-06
-summary:
+summary:    How to adjust your views to when the keyboard appears or disappears
 categories: iOS SwiftUI Combine
 ---
 
